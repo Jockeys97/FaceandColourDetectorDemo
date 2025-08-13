@@ -1,70 +1,69 @@
-# Getting Started with Create React App
+# Riconoscitore Facce (React + Clarifai)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Applicazione React che rileva i volti in un'immagine usando l'API Clarifai Face Detection. Supporta più volti, mostra le bounding box e le confidence, ed evita problemi CORS in sviluppo tramite proxy.
 
-## Available Scripts
+## Demo rapida
+- Esegui l'app (vedi Setup) e incolla un URL pubblico, ad esempio:
+  - `https://samples.clarifai.com/metro-north.jpg`
+  - `https://samples.clarifai.com/face-det.jpg`
+  - `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=900`
 
-In the project directory, you can run:
+## Stack
+- React (Create React App)
+- Clarifai REST API (`face-detection` v6dc7e46bc9124c5c8824be4822abe105)
+- http-proxy-middleware per il proxy di sviluppo
 
-### `npm start`
+## Setup
+1. Dipendenze:
+   ```bash
+   npm install --legacy-peer-deps
+   ```
+2. Variabili d'ambiente: crea un `.env` nella root con:
+   ```bash
+   REACT_APP_CLARIFAI_PAT=<il_tuo_PAT>
+   # opzionali (default già impostati)
+   REACT_APP_CLARIFAI_USER_ID=clarifai
+   REACT_APP_CLARIFAI_APP_ID=main
+   ```
+3. Avvio in sviluppo:
+   ```bash
+   npm start
+   ```
+   Apri `http://localhost:3000`.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Come funziona
+- Configurazione API: `src/config/api.js`
+  - Definisce modelli e `API_BASE_URL`. In sviluppo usa `'/api/clarifai/v2'` (proxy), in produzione usa `'https://api.clarifai.com/v2'`.
+  - Include helper `httpJson` con timeout e `resolveModelVersion` (cache della versione più recente se non fornita).
+- Proxy di sviluppo: `src/setupProxy.js`
+  - Instrada le richieste `'/api/clarifai/*'` verso `https://api.clarifai.com/*` e aggiunge l'header `Authorization: Key <PAT>` lato dev server per evitare CORS.
+- Servizio API: `src/services/apiService.js`
+  - `detectFaces(imageUrl)` invia il payload a Clarifai e restituisce `regions`.
+- UI:
+  - `src/App.js` gestisce input, chiamata API e calcola bounding box in pixel per tutte le facce.
+  - `src/Components/FaceRecognition/FaceRecognition.js` disegna tutte le bounding box e mostra le confidence.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Produzione
+In produzione il PAT non dovrebbe mai stare nel client. Opzioni consigliate:
+- Aggiungi un backend o una funzione serverless che inoltri la richiesta a Clarifai, aggiungendo il PAT lato server.
+- Imposta le variabili d'ambiente del server e non esporre il PAT al browser.
 
-### `npm test`
+Build di produzione:
+```bash
+npm run build
+```
+Distribuisci la cartella `build/` sul tuo hosting preferito.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Script NPM
+- `npm start`: avvio in sviluppo
+- `npm run build`: build produzione
+- `npm test`: test (CRA)
 
-### `npm run build`
+## Troubleshooting
+- CORS in sviluppo: assicurati di aver riavviato il dev server dopo aver creato/modificato `src/setupProxy.js`. Le richieste devono passare per `/api/clarifai/v2/...`.
+- 404 su `/api/clarifai/...`: indica proxy non agganciato; riavvia `npm start` e verifica i log del proxy in console.
+- 401/403: PAT mancante o invalido. Controlla `.env` e riavvia il dev server.
+- Vedi una sola faccia: aggiornato il supporto multi-volto; verifica che l'immagine contenga volti nitidi e non tagliati.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## Licenza
+Questo progetto è destinato ad uso didattico/dimostrativo.
