@@ -1,28 +1,28 @@
 import { CLARIFAI_CONFIG } from '../config/api';
 
 export async function clarifaiPredict(modelId, versionId, imageInput) {
-  const isDev = process.env.NODE_ENV === 'development';
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // Always use Vercel backend for GitHub Pages, only use dev proxy for localhost
+  const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
-  if (isDev && isLocalhost) {
-    // Development: use proxy
-    const url = `/api/clarifai/v2/models/${modelId}/versions/${versionId}/outputs`;
-    const payload = {
-      user_app_id: {
-        user_id: CLARIFAI_CONFIG.USER_ID,
-        app_id: CLARIFAI_CONFIG.APP_ID
-      },
-      inputs: [
-        {
-          data: {
-            image: imageInput?.base64
-              ? { base64: imageInput.base64 }
-              : { url: imageInput.url }
-          }
+  const payload = {
+    user_app_id: {
+      user_id: CLARIFAI_CONFIG.USER_ID,
+      app_id: CLARIFAI_CONFIG.APP_ID
+    },
+    inputs: [
+      {
+        data: {
+          image: imageInput?.base64
+            ? { base64: imageInput.base64 }
+            : { url: imageInput.url }
         }
-      ]
-    };
+      }
+    ]
+  };
 
+  if (isLocalDev) {
+    // Development: use local proxy
+    const url = `/api/clarifai/v2/models/${modelId}/versions/${versionId}/outputs`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -37,24 +37,8 @@ export async function clarifaiPredict(modelId, versionId, imageInput) {
     }
     return response.json();
   } else {
-    // Production: use Vercel function
-    const payload = {
-      user_app_id: {
-        user_id: CLARIFAI_CONFIG.USER_ID,
-        app_id: CLARIFAI_CONFIG.APP_ID
-      },
-      inputs: [
-        {
-          data: {
-            image: imageInput?.base64
-              ? { base64: imageInput.base64 }
-              : { url: imageInput.url }
-          }
-        }
-      ]
-    };
-
-    const response = await fetch('/api/clarifai-proxy', {
+    // Production (including GitHub Pages): use Vercel function
+    const response = await fetch('https://faceand-colour-detector-demo-75kb.vercel.app/api/clarifai-proxy', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
