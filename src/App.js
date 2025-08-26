@@ -1,7 +1,4 @@
 import React, { Component } from 'react';
-import Navigation from './Components/Navigation/Navigation';
-import SignIn from './Components/Signin/SignIn';
-import Register from './Components/Register/Register';
 import Logo from './Components/Logo/Logo';
 import ImageLinkForm from './Components/ImageLinkForm/ImageLinkForm';
 import Rank from './Components/Rank/Rank';
@@ -19,14 +16,14 @@ class App extends Component {
       imageUrl: '',
       isLoading: false,
       boxes: [],
-      route: 'signin',
-      isSignedIn: false,
+      route: 'home',
+      isSignedIn: true,
       user: {
-        id: '',
-        name: '',
-        email: '',
+        id: 'demo-user',
+        name: 'Demo User',
+        email: 'demo@example.com',
         entries: 0,
-        joined: ''
+        joined: new Date().toISOString()
       },
       facesData: [],
       colorData: [],
@@ -71,7 +68,7 @@ class App extends Component {
         });
         const facesData = regions.map(r => r.data?.concepts?.[0]).filter(Boolean);
         this.setState({ boxes, facesData });
-        await this.incrementEntries();
+        this.incrementEntries();
       } else {
         this.setState({ boxes: [], facesData: [] });
       }
@@ -93,23 +90,10 @@ class App extends Component {
     reader.readAsDataURL(file);
   };
 
-  incrementEntries = async () => {
-    const { user } = this.state;
-    if (!user || !user.id) return;
-    try {
-      const response = await fetch('http://localhost:3000/image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: user.id })
-      });
-      if (!response.ok) return;
-      const count = await response.json().catch(() => null);
-      if (typeof count === 'number') {
-        this.setState(prev => ({ user: { ...prev.user, entries: count } }));
-      }
-    } catch (error) {
-      console.error('Errore aggiornamento entries:', error);
-    }
+  incrementEntries = () => {
+    this.setState(prev => ({ 
+      user: { ...prev.user, entries: prev.user.entries + 1 } 
+    }));
   };
 
   onLocalDetect = async () => {
@@ -140,7 +124,7 @@ class App extends Component {
         });
         const facesData = regions.map(r => r.data?.concepts?.[0]).filter(Boolean);
         this.setState({ boxes, facesData });
-        await this.incrementEntries();
+        this.incrementEntries();
       } else {
         this.setState({ boxes: [], facesData: [] });
       }
@@ -151,26 +135,7 @@ class App extends Component {
     }
   };
 
-  loadUser = (user) => {
-    this.setState({
-      user: {
-        id: user?.id || '',
-        name: user?.name || '',
-        email: user?.email || '',
-        entries: user?.entries ?? '',
-        joined: user?.joined || ''
-      }
-    });
-  };
 
-  onRouteChange = (route) => {
-    if (route === 'signin' || route === 'register') {
-      this.setState({ isSignedIn: false });
-    } else if (route === 'home') {
-      this.setState({ isSignedIn: true });
-    }
-    this.setState({ route });
-  };
 
 
   render() {
@@ -192,28 +157,17 @@ class App extends Component {
           <span className='particle'></span>
           <span className='particle'></span>
         </div>
-        <Navigation onRouteChange={this.onRouteChange} isSignedIn={this.state.isSignedIn} />
-        {this.state.route === 'signin' && (
-          <SignIn onRouteChange={this.onRouteChange} loadUser={this.loadUser} />
-        )}
-        {this.state.route === 'register' && (
-          <Register onRouteChange={this.onRouteChange} loadUser={this.loadUser} />
-        )}
-        {this.state.route === 'home' && (
-          <>
-            <Logo />
-            <Rank name={this.state.user.name} entries={this.state.user.entries} />
-            <ImageLinkForm 
-              onInputChange={this.onInputChange}
-              onButtonSubmit={this.onButtonSubmit}
-              onFileChange={this.onFileChange}
-              onLocalDetect={this.onLocalDetect}
-              hasLocalFile={!!localDataUrl}
-              isLoading={isLoading}
-            />
-            <FaceRecognition boxes={this.state.boxes} imageUrl={this.state.imageUrl} faceData={this.state.facesData} colorData={this.state.colorData} />
-          </>
-        )}
+        <Logo />
+        <Rank name={this.state.user.name} entries={this.state.user.entries} />
+        <ImageLinkForm 
+          onInputChange={this.onInputChange}
+          onButtonSubmit={this.onButtonSubmit}
+          onFileChange={this.onFileChange}
+          onLocalDetect={this.onLocalDetect}
+          hasLocalFile={!!localDataUrl}
+          isLoading={isLoading}
+        />
+        <FaceRecognition boxes={this.state.boxes} imageUrl={this.state.imageUrl} faceData={this.state.facesData} colorData={this.state.colorData} />
       </div>
     );
   }
