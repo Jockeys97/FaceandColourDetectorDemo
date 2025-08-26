@@ -3,13 +3,5 @@
     "api/clarifai-proxy.js": {
       "maxDuration": 30
     }
-  },
-  "env": {
-    "CLARIFAI_PAT": "@clarifai-pat"
-  },
-  "build": {
-    "env": {
-      "CLARIFAI_PAT": "@clarifai-pat"
-    }
   }
 }
