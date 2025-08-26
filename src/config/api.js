@@ -24,7 +24,7 @@ export const CLARIFAI_CONFIG = {
 
 export const API_BASE_URL = process.env.NODE_ENV === 'development'
   ? '/api/clarifai/v2'
-  : 'https://api.clarifai.com/v2';
+  : '/api';
 
 export const buildApiUrl = (modelId, versionId) => {
   return `${API_BASE_URL}/models/${modelId}/versions/${versionId}/outputs`;
