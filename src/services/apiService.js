@@ -2,8 +2,9 @@ import { CLARIFAI_CONFIG } from '../config/api';
 
 export async function clarifaiPredict(modelId, versionId, imageInput) {
   const isDev = process.env.NODE_ENV === 'development';
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
-  if (isDev) {
+  if (isDev && isLocalhost) {
     // Development: use proxy
     const url = `/api/clarifai/v2/models/${modelId}/versions/${versionId}/outputs`;
     const payload = {
