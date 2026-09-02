@@ -1,174 +1,83 @@
 import React, { Component } from 'react';
-import Logo from './Components/Logo/Logo';
 import ImageLinkForm from './Components/ImageLinkForm/ImageLinkForm';
-import Rank from './Components/Rank/Rank';
-// Rimosse integrazioni API/FaceRecognition
-
-import './App.css';
 import FaceRecognition from './Components/FaceRecognition/FaceRecognition';
 import { detectFaces, detectFacesBase64, recognizeColors, recognizeColorsBase64 } from './services/apiService';
+import './App.css';
+
+const SAMPLE_IMAGE = 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85';
 
 class App extends Component {
-  constructor() {
-    super();
-    this.state = {
-      input: '',
-      imageUrl: '',
-      isLoading: false,
-      boxes: [],
-      route: 'home',
-      isSignedIn: true,
-      user: {
-        id: 'demo-user',
-        name: 'Demo User',
-        email: 'demo@example.com',
-        entries: 0,
-        joined: new Date().toISOString()
-      },
-      facesData: [],
-      colorData: [],
-      localDataUrl: ''
-    };
-  }
+  state = { input: '', imageUrl: '', isLoading: false, boxes: [], regions: [], facesData: [], colorData: [], localDataUrl: '', error: '', analysisCount: 0 };
 
-  // componentDidMount() {
-  //   fetch('http://localhost:3000/')
-  //   .then(response => response.json())
-  //   .then(data => console.log(data))
-  //   .catch(error => console.error('Error:', error));
-  // }
+  onInputChange = (event) => this.setState({ input: event.target.value });
 
-  onInputChange = (event) => {
-    this.setState({input: event.target.value});
+  getBoxes = (regions) => {
+    const image = document.getElementById('inputimage');
+    if (!image || !regions?.length) return [];
+    return regions.map(({ region_info: regionInfo }) => {
+      const box = regionInfo.bounding_box;
+      return { leftCol: box.left_col * image.clientWidth, topRow: box.top_row * image.clientHeight, rightCol: box.right_col * image.clientWidth, bottomRow: box.bottom_row * image.clientHeight };
+    });
   };
 
-  onButtonSubmit = async () => {
-    const { input } = this.state;
-    if (!input) return;
-    this.setState({ isLoading: true, imageUrl: input, boxes: [], facesData: [], colorData: [] });
+  runAnalysis = async ({ source, faceRequest, colorRequest }) => {
+    this.setState({ isLoading: true, imageUrl: source, boxes: [], regions: [], facesData: [], colorData: [], error: '' });
     try {
-      const [{ regions }, { colors }] = await Promise.all([
-        detectFaces(input),
-        recognizeColors(input)
-      ]);
-      // Aggiorna sempre i colori
-      this.setState({ colorData: colors });
-      const img = document.getElementById('inputimage');
-      if (img && regions.length > 0) {
-        const width = img.width;
-        const height = img.height;
-        const boxes = regions.map(r => {
-          const b = r.region_info.bounding_box;
-          return {
-            leftCol: b.left_col * width,
-            topRow: b.top_row * height,
-            rightCol: b.right_col * width,
-            bottomRow: b.bottom_row * height
-          };
-        });
-        const facesData = regions.map(r => r.data?.concepts?.[0]).filter(Boolean);
-        this.setState({ boxes, facesData });
-        this.incrementEntries();
-      } else {
-        this.setState({ boxes: [], facesData: [] });
-      }
+      const [{ regions = [] }, { colors = [] }] = await Promise.all([faceRequest(), colorRequest()]);
+      const facesData = regions.map((region) => region.data?.concepts?.[0]).filter(Boolean);
+      this.setState((previous) => ({ facesData, colorData: colors, regions, boxes: this.getBoxes(regions), analysisCount: previous.analysisCount + 1 }));
     } catch (error) {
-      console.error('Errore rilevamento facce:', error);
+      console.error('Analysis failed:', error);
+      this.setState({ error: 'Non sono riuscito ad analizzare questa immagine. Prova con un URL pubblico diretto oppure con un file JPG, PNG o WebP.' });
     } finally {
       this.setState({ isLoading: false });
     }
+  };
+
+  onButtonSubmit = () => {
+    const input = this.state.input.trim();
+    if (!input) return this.setState({ error: 'Inserisci un URL di immagine prima di avviare l’analisi.' });
+    this.runAnalysis({ source: input, faceRequest: () => detectFaces(input), colorRequest: () => recognizeColors(input) });
   };
 
   onFileChange = (event) => {
-    const file = event.target.files && event.target.files[0];
+    const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      this.setState({ localDataUrl: dataUrl, imageUrl: dataUrl, boxes: [], facesData: [] });
-    };
+    reader.onload = () => this.setState({ localDataUrl: reader.result, imageUrl: reader.result, boxes: [], regions: [], facesData: [], colorData: [], error: '' });
     reader.readAsDataURL(file);
   };
 
-  incrementEntries = () => {
-    this.setState(prev => ({ 
-      user: { ...prev.user, entries: prev.user.entries + 1 } 
-    }));
-  };
-
-  onLocalDetect = async () => {
+  onLocalDetect = () => {
     const { localDataUrl } = this.state;
     if (!localDataUrl) return;
     const base64 = String(localDataUrl).split(',')[1];
-    if (!base64) return;
-    this.setState({ isLoading: true, boxes: [], facesData: [], colorData: [] });
-    try {
-      const [{ regions }, { colors }] = await Promise.all([
-        detectFacesBase64(base64),
-        recognizeColorsBase64(base64)
-      ]);
-      // Aggiorna sempre i colori
-      this.setState({ colorData: colors });
-      const img = document.getElementById('inputimage');
-      if (img && regions.length > 0) {
-        const width = img.width;
-        const height = img.height;
-        const boxes = regions.map(r => {
-          const b = r.region_info.bounding_box;
-          return {
-            leftCol: b.left_col * width,
-            topRow: b.top_row * height,
-            rightCol: b.right_col * width,
-            bottomRow: b.bottom_row * height
-          };
-        });
-        const facesData = regions.map(r => r.data?.concepts?.[0]).filter(Boolean);
-        this.setState({ boxes, facesData });
-        this.incrementEntries();
-      } else {
-        this.setState({ boxes: [], facesData: [] });
-      }
-    } catch (error) {
-      console.error('Errore rilevamento facce (file locale):', error);
-    } finally {
-      this.setState({ isLoading: false });
-    }
+    this.runAnalysis({ source: localDataUrl, faceRequest: () => detectFacesBase64(base64), colorRequest: () => recognizeColorsBase64(base64) });
   };
 
+  onSampleClick = () => this.setState({ input: SAMPLE_IMAGE }, this.onButtonSubmit);
 
-
+  onImageLoad = () => this.setState((state) => ({ boxes: this.getBoxes(state.regions) }));
 
   render() {
-    const { isLoading, localDataUrl } = this.state;
-
+    const { isLoading, localDataUrl, input, imageUrl, boxes, facesData, colorData, error, analysisCount } = this.state;
     return (
-      <div className='App'>
-        <div className='particles'>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-          <span className='particle'></span>
-        </div>
-        <Logo />
-        <Rank name={this.state.user.name} entries={this.state.user.entries} />
-        <ImageLinkForm 
-          onInputChange={this.onInputChange}
-          onButtonSubmit={this.onButtonSubmit}
-          onFileChange={this.onFileChange}
-          onLocalDetect={this.onLocalDetect}
-          hasLocalFile={!!localDataUrl}
-          isLoading={isLoading}
-        />
-        <FaceRecognition boxes={this.state.boxes} imageUrl={this.state.imageUrl} faceData={this.state.facesData} colorData={this.state.colorData} />
-      </div>
+      <main className="app-shell">
+        <nav className="topbar" aria-label="Intestazione applicazione">
+          <a className="brand" href="/" aria-label="Vision Lab home"><span className="brand-mark" aria-hidden="true">◉</span><span>Vision Lab</span></a>
+          <span className="topbar-status"><i /> Demo interattiva</span>
+        </nav>
+        <section className="hero">
+          <div className="eyebrow">COMPUTER VISION · FACE + COLOUR</div>
+          <h1>Trasforma un’immagine in segnali visivi chiari.</h1>
+          <p>Rileva i volti e i colori dominanti da un URL pubblico o da un file locale. I risultati sono mostrati direttamente sopra l’immagine.</p>
+          <div className="hero-meta"><span>Face detection</span><span>Colour analysis</span><span>Server-side API proxy</span></div>
+        </section>
+        <ImageLinkForm input={input} onInputChange={this.onInputChange} onButtonSubmit={this.onButtonSubmit} onFileChange={this.onFileChange} onLocalDetect={this.onLocalDetect} onSampleClick={this.onSampleClick} hasLocalFile={!!localDataUrl} isLoading={isLoading} />
+        {error && <div className="error-banner" role="alert"><strong>Attenzione.</strong> {error}</div>}
+        <FaceRecognition boxes={boxes} imageUrl={imageUrl} faceData={facesData} colorData={colorData} isLoading={isLoading} analysisCount={analysisCount} onImageLoad={this.onImageLoad} />
+        <footer><span>Prototype by Alessio Fantini</span><span>Built with React · Clarifai API</span></footer>
+      </main>
     );
   }
 }

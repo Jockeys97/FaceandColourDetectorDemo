@@ -1,120 +1,13 @@
 import React from 'react';
 import './FaceRecognition.css';
 
-const FaceRecognition = ({ boxes = [], imageUrl, faceData, colorData, generalData, onImageLoad }) => {
-  const hasResults = (Array.isArray(faceData) ? faceData.length > 0 : !!faceData) || colorData || generalData;
-
-  return (
-    <div className='center ma'>
-      <div className='absolute mt2' style={{ position: 'relative', display: 'inline-block' }}>
-        {imageUrl && (
-          <img 
-            id='inputimage' 
-            alt='' 
-            src={imageUrl} 
-            width='500px' 
-            height='auto'
-            onLoad={onImageLoad}
-          />
-        )}
-        {Array.isArray(boxes) && boxes.map((box, idx) => (
-          <div key={idx} className='bounding-box' style={{
-            top: box.topRow,
-            left: box.leftCol,
-            width: box.rightCol - box.leftCol,
-            height: box.bottomRow - box.topRow
-          }}></div>
-        ))}
-      </div>
-      
-      {/* Risultati analisi */}
-      {hasResults && (
-        <div className='analysis-results' style={{
-          marginTop: '20px',
-          padding: '20px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '10px',
-          maxWidth: '600px',
-          margin: '20px auto'
-        }}>
-          <h3 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
-            📊 Risultati Analisi
-          </h3>
-          
-          {/* Face Detection Results */}
-          {Array.isArray(faceData) && faceData.length > 0 && (
-            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: 'white', borderRadius: '8px' }}>
-              <h4 style={{ color: '#007bff', marginBottom: '10px' }}>😊 Face Detection</h4>
-              <p>✅ Facce rilevate: {boxes?.length || faceData.length}</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {faceData.map((fd, i) => (
-                  <span key={i} style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#e9ecef',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    color: '#495057'
-                  }}>
-                    Face {i + 1}: {Math.round(((fd?.value ?? 0) * 100))}%
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Color Recognition Results */}
-          {colorData && colorData.length > 0 && (
-            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: 'white', borderRadius: '8px' }}>
-              <h4 style={{ color: '#28a745', marginBottom: '10px' }}>🎨 Color Recognition</h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                {colorData.slice(0, 6).map((color, index) => (
-                  <div key={index} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '5px 10px',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '15px',
-                    fontSize: '14px'
-                  }}>
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      backgroundColor: color.raw_hex,
-                      borderRadius: '50%',
-                      border: '2px solid #ddd'
-                    }}></div>
-                    <span>{color.w3c.name}</span>
-                    <span style={{ color: '#666' }}>({Math.round(color.value * 100)}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* General Recognition Results */}
-          {generalData && generalData.length > 0 && (
-            <div style={{ padding: '15px', backgroundColor: 'white', borderRadius: '8px' }}>
-              <h4 style={{ color: '#ffc107', marginBottom: '10px' }}>🔍 General Recognition</h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {generalData.slice(0, 8).map((concept, index) => (
-                  <span key={index} style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#e9ecef',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    color: '#495057'
-                  }}>
-                    {concept.name} ({Math.round(concept.value * 100)}%)
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
+const FaceRecognition = ({ boxes = [], imageUrl, faceData = [], colorData = [], isLoading, analysisCount, onImageLoad }) => {
+  const hasAnalysis = imageUrl && !isLoading;
+  const hasData = faceData.length > 0 || colorData.length > 0;
+  if (!imageUrl && !isLoading) return <section className="empty-state"><span className="empty-icon">⌁</span><h2>Pronto per l’analisi</h2><p>Carica un’immagine o prova l’esempio per visualizzare i risultati.</p></section>;
+  return <section className="results-layout" aria-live="polite">
+    <div className="image-card"><div className="image-card-head"><span>INPUT IMAGE</span><span>{isLoading ? 'ELABORAZIONE' : hasData ? 'ANALIZZATA' : 'PRONTA'}</span></div><div className="image-stage">{imageUrl && <img id="inputimage" alt="Immagine sottoposta all’analisi" src={imageUrl} onLoad={onImageLoad} />}{isLoading && <div className="loading-overlay"><span className="loader" /><p>Sto analizzando volto e palette…</p></div>}{!isLoading && boxes.map((box, index) => <div key={index} className="bounding-box" style={{ top: box.topRow, left: box.leftCol, width: box.rightCol - box.leftCol, height: box.bottomRow - box.topRow }}><span>Face {index + 1}</span></div>)}</div></div>
+    <aside className="results-card"><div className="results-head"><div><p className="section-kicker">OUTPUT</p><h2>Risultati</h2></div><span className="analysis-index">#{String(analysisCount).padStart(2, '0')}</span></div>{!hasAnalysis && <p className="results-placeholder">Preparazione dell’immagine…</p>}{hasAnalysis && !hasData && <p className="results-placeholder">Non ho trovato segnali rilevabili. Prova un’altra immagine.</p>}{hasData && <><div className="metric"><span>Volti rilevati</span><strong>{faceData.length}</strong></div>{faceData.length > 0 && <div className="confidence-list">{faceData.map((face, index) => <div className="confidence-row" key={index}><span>Rilevamento {index + 1}</span><b>{Math.round((face.value || 0) * 100)}%</b></div>)}</div>}<div className="divider" /><h3>Colori dominanti</h3><div className="colour-list">{colorData.slice(0, 6).map((colour, index) => <div className="colour-row" key={`${colour.raw_hex}-${index}`}><span className="swatch" style={{ backgroundColor: colour.raw_hex }} /><span>{colour.w3c?.name || colour.raw_hex}</span><b>{Math.round((colour.value || 0) * 100)}%</b></div>)}</div></>}</aside>
+  </section>;
+};
 export default FaceRecognition;
