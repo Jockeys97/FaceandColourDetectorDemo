@@ -1,3 +1,18 @@
+import https from 'https';
+
+const postJson = (url, headers, body) => new Promise((resolve, reject) => {
+  const request = https.request(url, { method: 'POST', headers }, (response) => {
+    let raw = '';
+    response.setEncoding('utf8');
+    response.on('data', (chunk) => { raw += chunk; });
+    response.on('end', () => resolve({ status: response.statusCode || 500, body: raw }));
+  });
+  request.setTimeout(25000, () => request.destroy(new Error('Clarifai request timed out')));
+  request.on('error', reject);
+  request.write(body);
+  request.end();
+});
+
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -32,24 +47,17 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Clarifai PAT not configured' });
     }
 
-    const response = await fetch(clarifaiUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Key ${PAT}`
-      },
-      body: JSON.stringify(payload)
-    });
+    const response = await postJson(clarifaiUrl, {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': `Key ${PAT}`
+    }, JSON.stringify(payload));
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Clarifai API error:', response.status, errorText);
-      return res.status(response.status).json({ error: 'Clarifai API error', details: errorText });
+    if (response.status < 200 || response.status >= 300) {
+      console.error('Clarifai API error:', response.status, response.body);
+      return res.status(response.status).json({ error: 'Clarifai API error', details: response.body });
     }
-
-    const data = await response.json();
-    res.status(200).json(data);
+    res.status(200).json(JSON.parse(response.body));
 
   } catch (error) {
     console.error('Proxy error:', error);
